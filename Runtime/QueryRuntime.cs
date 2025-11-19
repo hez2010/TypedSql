@@ -97,13 +97,12 @@ internal ref struct QueryRuntime<TResult>(int expectedCount)
 internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
 {
     private readonly ValueString[] _buffer;
-    private readonly int _count;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal ValueStringQueryResult(ValueString[] buffer, int count)
     {
         _buffer = buffer;
-        _count = count;
+        Count = count;
     }
 
     public string this[int index]
@@ -111,15 +110,15 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _count);
-            return _buffer[index].Value;
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
+            return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), index).Value;
         }
     }
 
-    public int Count => _count;
+    public int Count { get; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Enumerator GetEnumerator() => new(_buffer, _count);
+    public Enumerator GetEnumerator() => new(_buffer, Count);
 
     IEnumerator<string> IEnumerable<string>.GetEnumerator() => GetEnumerator();
 
@@ -139,9 +138,16 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
             _index = -1;
         }
 
-        public readonly string Current => _buffer[_index].Value;
+        public readonly string Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), _index).Value;
+            }
+        }
 
-        object IEnumerator.Current => Current!;
+        readonly object IEnumerator.Current => Current!;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext() => ++_index < _count;
@@ -169,7 +175,7 @@ internal readonly struct QueryResult<TResult> : IReadOnlyList<TResult>
         get
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
-            return _buffer[index];
+            return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), index);
         }
     }
 
@@ -196,7 +202,14 @@ internal readonly struct QueryResult<TResult> : IReadOnlyList<TResult>
             _index = -1;
         }
 
-        public readonly TResult Current => _buffer[_index];
+        public readonly TResult Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), _index);
+            }
+        }
 
         readonly object IEnumerator.Current => Current!;
 
