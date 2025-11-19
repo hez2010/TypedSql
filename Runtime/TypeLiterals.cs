@@ -175,7 +175,7 @@ internal static class LiteralTypeFactory
         for (var i = 0; i < 8; i++)
         {
             var shift = (7 - i) * 4;
-            var nibble = (int)((unsigned >> shift) & 0xF);
+            var nibble = (int)((unsigned >>> shift) & 0xF);
             typeArgs[i] = HexTypes[nibble];
         }
 
