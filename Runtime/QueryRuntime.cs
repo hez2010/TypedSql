@@ -1,0 +1,211 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+namespace TypedSql.Runtime;
+
+internal readonly record struct ValueString(string Value) : IComparable<ValueString>
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int CompareTo(ValueString other)
+        => string.Compare(Value, other.Value, StringComparison.Ordinal);
+
+    public override string ToString() => Value ?? string.Empty;
+
+    public static implicit operator ValueString(string value) => new(value);
+
+    public static implicit operator string(ValueString value) => value.Value;
+}
+
+[method: MethodImpl(MethodImplOptions.AggressiveInlining)]
+internal ref struct QueryRuntime<TResult>(int expectedCount)
+{
+    private TResult[] _buffer = expectedCount > 0 ? GC.AllocateUninitializedArray<TResult>(expectedCount) : [];
+    private int _count = 0;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(in TResult value)
+    {
+        EnsureCapacity(_count + 1);
+        Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), _count++) = value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void AddRange(ReadOnlySpan<TResult> values)
+    {
+        if (values.Length == 0)
+        {
+            return;
+        }
+
+        EnsureCapacity(_count + values.Length);
+        values.CopyTo(_buffer.AsSpan(_count));
+        _count += values.Length;
+    }
+
+    public readonly IReadOnlyList<TResult> Rows
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            return new QueryResult<TResult>(_buffer, _count);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly IReadOnlyList<string> AsStringRows()
+    {
+        var buffer = (ValueString[]?)(object?)_buffer ?? [];
+        return new ValueStringQueryResult(buffer, _count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly ReadOnlySpan<TResult> AsSpan()
+    {
+        return _buffer.AsSpan(0, _count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly void Set(int index, in TResult value)
+    {
+        Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), index) = value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void EnsureCapacity(int needed)
+    {
+        if (_buffer is null)
+        {
+            _buffer = GC.AllocateUninitializedArray<TResult>(int.Max(4, needed));
+            return;
+        }
+
+        if (_buffer.Length >= needed)
+        {
+            return;
+        }
+
+        var newSize = int.Max(needed, int.Max(4, _buffer.Length * 2));
+        var next = GC.AllocateUninitializedArray<TResult>(newSize);
+        _buffer.CopyTo(MemoryMarshal.CreateSpan(ref MemoryMarshal.GetArrayDataReference(next), _count));
+        _buffer = next;
+    }
+}
+
+internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
+{
+    private readonly ValueString[] _buffer;
+    private readonly int _count;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ValueStringQueryResult(ValueString[] buffer, int count)
+    {
+        _buffer = buffer;
+        _count = count;
+    }
+
+    public string this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _count);
+            return _buffer[index].Value;
+        }
+    }
+
+    public int Count => _count;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Enumerator GetEnumerator() => new(_buffer, _count);
+
+    IEnumerator<string> IEnumerable<string>.GetEnumerator() => GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    internal struct Enumerator : IEnumerator<string>
+    {
+        private readonly ValueString[] _buffer;
+        private readonly int _count;
+        private int _index;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Enumerator(ValueString[] buffer, int count)
+        {
+            _buffer = buffer;
+            _count = count;
+            _index = -1;
+        }
+
+        public readonly string Current => _buffer[_index].Value;
+
+        object IEnumerator.Current => Current!;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext() => ++_index < _count;
+
+        public void Reset() => _index = -1;
+
+        public readonly void Dispose() { }
+    }
+}
+
+internal readonly struct QueryResult<TResult> : IReadOnlyList<TResult>
+{
+    private readonly TResult[] _buffer;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal QueryResult(TResult[] buffer, int count)
+    {
+        _buffer = buffer;
+        Count = count;
+    }
+
+    public TResult this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
+            return _buffer[index];
+        }
+    }
+
+    public int Count { get; }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Enumerator GetEnumerator() => new(_buffer, Count);
+
+    IEnumerator<TResult> IEnumerable<TResult>.GetEnumerator() => GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    internal struct Enumerator : IEnumerator<TResult>
+    {
+        private readonly TResult[] _buffer;
+        private readonly int _count;
+        private int _index;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Enumerator(TResult[] buffer, int count)
+        {
+            _buffer = buffer;
+            _count = count;
+            _index = -1;
+        }
+
+        public readonly TResult Current => _buffer[_index];
+
+        readonly object IEnumerator.Current => Current!;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext() => ++_index < _count;
+
+        public void Reset() => _index = -1;
+
+        public readonly void Dispose() { }
+    }
+}
+
