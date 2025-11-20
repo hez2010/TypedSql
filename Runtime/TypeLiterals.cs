@@ -42,13 +42,13 @@ internal readonly struct Int<H7, H6, H5, H4, H3, H2, H1, H0> : ILiteral<int>
     public static int Value
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => H7.Value << 28
-               | H6.Value << 24
-               | H5.Value << 20
-               | H4.Value << 16
-               | H3.Value << 12
-               | H2.Value << 8
-               | H1.Value << 4
+        get => (H7.Value << 28)
+               | (H6.Value << 24)
+               | (H5.Value << 20)
+               | (H4.Value << 16)
+               | (H3.Value << 12)
+               | (H2.Value << 8)
+               | (H1.Value << 4)
                | H0.Value;
     }
 }
@@ -66,13 +66,13 @@ internal readonly struct Float<H7, H6, H5, H4, H3, H2, H1, H0> : ILiteral<float>
     public static float Value
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Unsafe.BitCast<int, float>(H7.Value << 28
-               | H6.Value << 24
-               | H5.Value << 20
-               | H4.Value << 16
-               | H3.Value << 12
-               | H2.Value << 8
-               | H1.Value << 4
+        get => Unsafe.BitCast<int, float>((H7.Value << 28)
+               | (H6.Value << 24)
+               | (H5.Value << 20)
+               | (H4.Value << 16)
+               | (H3.Value << 12)
+               | (H2.Value << 8)
+               | (H1.Value << 4)
                | H0.Value);
     }
 }
@@ -86,9 +86,9 @@ internal readonly struct Char<H3, H2, H1, H0> : ILiteral<char>
     public static char Value
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => (char)(H3.Value << 12
-                      | H2.Value << 8
-                      | H1.Value << 4
+        get => (char)((H3.Value << 12)
+                      | (H2.Value << 8)
+                      | (H1.Value << 4)
                       | H0.Value);
     }
 }
@@ -195,9 +195,13 @@ internal static class LiteralTypeFactory
         return typeof(Int<,,,,,,,>).MakeGenericType(typeArgs);
     }
 
-    public static Type CreateStringLiteral(string value)
+    public static Type CreateStringLiteral(string? value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value is null)
+        {
+            return typeof(StringLiteral<StringNull>);
+        }
+
         var type = typeof(StringEnd);
         for (var i = value.Length - 1; i >= 0; i--)
         {

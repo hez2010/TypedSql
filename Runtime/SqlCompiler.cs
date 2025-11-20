@@ -333,7 +333,7 @@ internal static class SqlCompiler
 
         if (columnType == typeof(ValueString))
         {
-            if (literal.Kind != LiteralKind.String || literal.StringValue is null)
+            if (literal.Kind != LiteralKind.String)
             {
                 throw new InvalidOperationException("Expected a string literal for this column.");
             }

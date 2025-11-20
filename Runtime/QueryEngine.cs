@@ -71,8 +71,8 @@ public static class QueryEngine
     {
         if (t.GetInterfaces().Any(i => i == typeof(ILiteral<ValueString>)))
         {
-            var literalValue = (ValueString)t.GetProperty("Value")!.GetValue(null)!;
-            return $"'{literalValue}'";
+            var literalValue = (ValueString)t.GetProperty(nameof(ILiteral<>.Value))!.GetValue(null)!;
+            return literalValue.Value is null ? "null" : $"'{literalValue}'";
         }
 
         var hex = t.GetGenericArguments();
@@ -80,10 +80,10 @@ public static class QueryEngine
         for (int i = 0; i < hex.Length; i++)
         {
             num <<= 4;
-            num |= (int)hex[i].GetProperty("Value")!.GetValue(null)!;
+            num |= (int)hex[i].GetProperty(nameof(ILiteral<>.Value))!.GetValue(null)!;
         }
         var targetType = t.GetInterfaces().First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ILiteral<>)).GetGenericArguments()[0];
-        var converted = typeof(Unsafe).GetMethod("As", 2, BindingFlags.Public | BindingFlags.Static, [Type.MakeGenericMethodParameter(0).MakeByRefType()])!.MakeGenericMethod(typeof(int), targetType).Invoke(null, [num])!;
+        var converted = typeof(Unsafe).GetMethod(nameof(Unsafe.As), 2, BindingFlags.Public | BindingFlags.Static, [Type.MakeGenericMethodParameter(0).MakeByRefType()])!.MakeGenericMethod(typeof(int), targetType).Invoke(null, [num])!;
         return converted!.ToString()!;
     }
 

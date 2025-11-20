@@ -75,12 +75,12 @@ internal readonly struct PersonCountryColumn : IColumn<Person, string>
     public static string Get(in Person row) => row.Country;
 }
 
-internal readonly struct PersonTeamColumn : IColumn<Person, string>
+internal readonly struct PersonTeamColumn : IColumn<Person, string?>
 {
     public static string Identifier => "team";
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string Get(in Person row) => row.Team;
+    public static string? Get(in Person row) => row.Team;
 }
 
 internal readonly struct PersonLevelColumn : IColumn<Person, string>

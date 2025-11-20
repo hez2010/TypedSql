@@ -9,7 +9,7 @@ var rows = new[]
 	new Person(2, "Barbara", 28, "Boston", 150_000f, "Engineering", false, 3, "US", "Compiler", "Mid"),
 	new Person(3, "Charles", 44, "Helsinki", 210_000f, "Research", true, 15, "FI", "ML", "Principal"),
 	new Person(4, "David", 31, "Palo Alto", 195_000f, "Product", false, 4, "US", "Runtime", "Senior"),
-	new Person(5, "Eve", 39, "Seattle", 220_000f, "Product", true, 10, "US", "ML", "Staff"),
+	new Person(5, "Eve", 39, "Seattle", 220_000f, "Product", true, 10, "US", null, "Staff"),
 };
 
 Console.WriteLine("Input data:");
@@ -62,8 +62,8 @@ foreach (var name in Compile<Person, string>("SELECT Name FROM $ WHERE NOT count
 Console.WriteLine();
 
 // 5) Project to a tuple with richer shape
-foreach (var (name, city, department, team, level) in Compile<Person, (string Name, string City, string Department, string Team, string Level)>(
-	"SELECT Name, City, Department, Team, Level FROM $ WHERE salary >= 195000").Execute(rows))
+foreach (var (name, city, department, team, level) in Compile<Person, (string Name, string City, string Department, string? Team, string Level)>(
+	"SELECT Name, City, Department, Team, Level FROM $ WHERE salary >= 195000 AND Team != null").Execute(rows))
 {
-	Console.WriteLine($" -> {name} ({city}) - {department}/{team} [{level}]");
+	Console.WriteLine($" -> {name} ({city}) - {department}/{team ?? "Unset"} [{level}]");
 }

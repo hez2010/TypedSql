@@ -28,7 +28,7 @@ internal readonly record struct LiteralValue(LiteralKind Kind, int IntValue, str
 {
     public static LiteralValue FromInt(int value) => new(LiteralKind.Integer, value, null, 0f, false);
 
-    public static LiteralValue FromString(string value) => new(LiteralKind.String, 0, value, 0f, false);
+    public static LiteralValue FromString(string? value) => new(LiteralKind.String, 0, value, 0f, false);
 
     public static LiteralValue FromFloat(float value) => new(LiteralKind.Float, 0, null, value, false);
 
@@ -119,6 +119,11 @@ internal static class SqlParser
         if (token.Equals("false", StringComparison.OrdinalIgnoreCase))
         {
             return LiteralValue.FromBool(false);
+        }
+
+        if (token.Equals("null", StringComparison.OrdinalIgnoreCase))
+        {
+            return LiteralValue.FromString(null);
         }
 
         if (token.Length >= 2 && token[0] == '\'' && token[^1] == '\'')
