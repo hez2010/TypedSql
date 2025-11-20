@@ -6,17 +6,19 @@ using System.Runtime.InteropServices;
 
 namespace TypedSql.Runtime;
 
-internal readonly record struct ValueString(string Value) : IComparable<ValueString>
+internal readonly struct ValueString(string? value) : IComparable<ValueString>
 {
+    public readonly string? Value = value;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int CompareTo(ValueString other)
         => string.Compare(Value, other.Value, StringComparison.Ordinal);
 
-    public override string ToString() => Value ?? string.Empty;
+    public override string? ToString() => Value;
 
     public static implicit operator ValueString(string value) => new(value);
 
-    public static implicit operator string(ValueString value) => value.Value;
+    public static implicit operator string?(ValueString value) => value.Value;
 }
 
 [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +64,12 @@ internal ref struct QueryRuntime<TResult>(int expectedCount)
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly IReadOnlyList<TPublicResult> AsValueTupleRows<TPublicResult>()
+    {
+        return new ValueTupleQueryResult<TPublicResult, TResult>(_buffer, _count);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly ReadOnlySpan<TResult> AsSpan()
     {
         return _buffer.AsSpan(0, _count);
@@ -94,7 +102,7 @@ internal ref struct QueryRuntime<TResult>(int expectedCount)
     }
 }
 
-internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
+internal readonly struct ValueStringQueryResult : IReadOnlyList<string?>
 {
     private readonly ValueString[] _buffer;
 
@@ -105,7 +113,7 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
         Count = count;
     }
 
-    public string this[int index]
+    public string? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -120,11 +128,11 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Enumerator GetEnumerator() => new(_buffer, Count);
 
-    IEnumerator<string> IEnumerable<string>.GetEnumerator() => GetEnumerator();
+    IEnumerator<string> IEnumerable<string?>.GetEnumerator() => GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    internal struct Enumerator : IEnumerator<string>
+    internal struct Enumerator : IEnumerator<string?>
     {
         private readonly ValueString[] _buffer;
         private readonly int _count;
@@ -138,7 +146,7 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
             _index = -1;
         }
 
-        public readonly string Current
+        public readonly string? Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -147,7 +155,7 @@ internal readonly struct ValueStringQueryResult : IReadOnlyList<string>
             }
         }
 
-        readonly object IEnumerator.Current => Current!;
+        readonly object? IEnumerator.Current => Current;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext() => ++_index < _count;
@@ -211,7 +219,7 @@ internal readonly struct QueryResult<TResult> : IReadOnlyList<TResult>
             }
         }
 
-        readonly object IEnumerator.Current => Current!;
+        readonly object? IEnumerator.Current => Current;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext() => ++_index < _count;
@@ -222,3 +230,70 @@ internal readonly struct QueryResult<TResult> : IReadOnlyList<TResult>
     }
 }
 
+internal readonly struct ValueTupleQueryResult<TPublicResult, TRuntimeResult> : IReadOnlyList<TPublicResult>
+{
+    private readonly TRuntimeResult[] _buffer;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ValueTupleQueryResult(TRuntimeResult[] buffer, int count)
+    {
+        _buffer = buffer;
+        Count = count;
+    }
+
+    public TPublicResult this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
+            TPublicResult result = default!;
+            ValueTupleConvertHelper<TPublicResult, TRuntimeResult>.Copy(ref result, ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), index));
+            return result;
+        }
+    }
+
+    public int Count { get; }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Enumerator GetEnumerator() => new(_buffer, Count);
+
+    IEnumerator<TPublicResult> IEnumerable<TPublicResult>.GetEnumerator() => GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    internal struct Enumerator : IEnumerator<TPublicResult>
+    {
+        private readonly TRuntimeResult[] _buffer;
+        private readonly int _count;
+        private int _index;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Enumerator(TRuntimeResult[] buffer, int count)
+        {
+            _buffer = buffer;
+            _count = count;
+            _index = -1;
+        }
+
+        public readonly TPublicResult Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                TPublicResult result = default!;
+                ValueTupleConvertHelper<TPublicResult, TRuntimeResult>.Copy(ref result, ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), _index));
+                return result;
+            }
+        }
+
+        readonly object IEnumerator.Current => Current!;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext() => ++_index < _count;
+
+        public void Reset() => _index = -1;
+
+        public readonly void Dispose() { }
+    }
+}

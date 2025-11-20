@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace TypedSql.Runtime;
 
 internal static class SqlCompiler
 {
-    public static (Type PipelineType, Type RuntimeResultType, Type PublicResultType) Compile<TRow>(ParsedQuery query)
+    public static (Type PipelineType, Type RuntimeResultType, Type PublicResultType) Compile<TRow>(ParsedQuery query, bool supportsAot = false)
     {
         var rowType = typeof(TRow);
         Type runtimeResultType;
@@ -20,7 +21,7 @@ internal static class SqlCompiler
         }
         else
         {
-            var (projectionType, runtimeType, publicType) = BuildSelectionProjection<TRow>(query.Selection.ColumnIdentifiers);
+            var (projectionType, runtimeType, publicType) = BuildSelectionProjection<TRow>(query.Selection.ColumnIdentifiers, supportsAot);
             runtimeResultType = runtimeType;
             publicResultType = publicType;
 
@@ -45,7 +46,7 @@ internal static class SqlCompiler
         return (pipeline, runtimeResultType, publicResultType);
     }
 
-    private static (Type ProjectionType, Type RuntimeResultType, Type PublicResultType) BuildSelectionProjection<TRow>(IReadOnlyList<string> columnIdentifiers)
+    private static (Type ProjectionType, Type RuntimeResultType, Type PublicResultType) BuildSelectionProjection<TRow>(IReadOnlyList<string> columnIdentifiers, bool supportsAot)
     {
         if (columnIdentifiers is null || columnIdentifiers.Count == 0)
         {
@@ -68,10 +69,11 @@ internal static class SqlCompiler
             columns[i] = SchemaRegistry<TRow>.ResolveColumn(columnIdentifiers[i]);
         }
 
-        var tupleInfo = BuildTupleSelection(rowType, columns, 0);
+        var tupleInfo = BuildTupleSelection(rowType, columns, 0, supportsAot);
         return (tupleInfo.ProjectionType, tupleInfo.RuntimeType, tupleInfo.PublicType);
     }
-    private static TupleSelectionInfo BuildTupleSelection(Type rowType, ColumnMetadata[] columns, int offset)
+
+    private static TupleSelectionInfo BuildTupleSelection(Type rowType, ColumnMetadata[] columns, int offset, bool supportsAot)
     {
         var remaining = columns.Length - offset;
         if (remaining <= 0)
@@ -88,11 +90,16 @@ internal static class SqlCompiler
             for (var i = 0; i < remaining; i++)
             {
                 var column = columns[offset + i];
-                // TODO: figure out an efficient way to convert ValueTuple<ValueString> to ValueTuple<string>
-                // runtimeColumnTypes[i] = column.GetRuntimeColumnType(rowType);
-                // runtimeValueTypes[i] = column.GetRuntimeValueType();
-                runtimeColumnTypes[i] = column.ColumnType;
-                runtimeValueTypes[i] = column.ValueType;
+                if (!supportsAot)
+                {
+                    runtimeColumnTypes[i] = column.GetRuntimeColumnType(rowType);
+                    runtimeValueTypes[i] = column.GetRuntimeValueType();
+                }
+                else
+                {
+                    runtimeColumnTypes[i] = column.ColumnType;
+                    runtimeValueTypes[i] = column.ValueType;
+                }
                 publicValueTypes[i] = column.ValueType;
             }
 
@@ -109,15 +116,20 @@ internal static class SqlCompiler
         for (var i = 0; i < 7; i++)
         {
             var column = columns[offset + i];
-            // TODO: figure out an efficient way to convert ValueTuple<ValueString> to ValueTuple<string>
-            // headRuntimeColumns[i] = column.GetRuntimeColumnType(rowType);
-            // headRuntimeValues[i] = column.GetRuntimeValueType();
-            headRuntimeColumns[i] = column.ColumnType;
-            headRuntimeValues[i] = column.ValueType;
+            if (!supportsAot)
+            {
+                headRuntimeColumns[i] = column.GetRuntimeColumnType(rowType);
+                headRuntimeValues[i] = column.GetRuntimeValueType();
+            }
+            else
+            {
+                headRuntimeColumns[i] = column.ColumnType;
+                headRuntimeValues[i] = column.ValueType;
+            }
             headPublicValues[i] = column.ValueType;
         }
 
-        var rest = BuildTupleSelection(rowType, columns, offset + 7);
+        var rest = BuildTupleSelection(rowType, columns, offset + 7, supportsAot);
         var projectionArgs = new Type[17];
         projectionArgs[0] = rowType;
         for (var i = 0; i < 7; i++)

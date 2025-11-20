@@ -111,7 +111,10 @@ internal static class QueryProgram<TRow, TPipeline, TRuntimeResult, TPublicResul
         {
             return (IReadOnlyList<TPublicResult>)(object)runtime.AsStringRows();
         }
-        
+        else if (RuntimeFeature.IsDynamicCodeSupported && typeof(TRuntimeResult).IsGenericType && typeof(TPublicResult).IsGenericType)
+        {
+            return runtime.AsValueTupleRows<TPublicResult>();
+        }
         return Throw();
     }
 

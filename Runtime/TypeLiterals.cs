@@ -109,6 +109,14 @@ internal readonly struct StringEnd : IStringNode
     }
 }
 
+internal readonly struct StringNull : IStringNode
+{
+    public static int Length => -1;
+    public static void Write(Span<char> destination, int index)
+    {
+    }
+}
+
 internal readonly struct StringNode<TChar, TNext> : IStringNode
     where TChar : ILiteral<char>
     where TNext : IStringNode
@@ -136,6 +144,11 @@ internal readonly struct StringLiteral<TString> : ILiteral<ValueString>
         private static ValueString Build()
         {
             var length = TString.Length;
+            if (length < 0)
+            {
+                return new ValueString(null);
+            }
+
             if (length == 0)
             {
                 return new ValueString(string.Empty);
@@ -211,7 +224,6 @@ internal static class LiteralTypeFactory
 
     public static Type CreateBoolLiteral(bool value)
     {
-        // For booleans we don't need hex encoding
         return value
             ? typeof(TrueLiteral)
             : typeof(FalseLiteral);
