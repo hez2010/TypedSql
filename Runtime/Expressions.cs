@@ -157,55 +157,143 @@ internal interface IFilter<TRow>
 internal readonly struct EqualsFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) == 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return TColumn.Get(row).Equals(TLiteral.Value);
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return true;
+            if (left is null || right is null) return false;
+            return left.Equals(right);
+        }
+    }
 }
 
 internal readonly struct GreaterThanFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) > 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return TColumn.Get(row).CompareTo(TLiteral.Value) > 0;
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return false;
+            if (left is null) return false;
+            if (right is null) return true;
+            return left.CompareTo(right) > 0;
+        }
+    }
 }
 
 internal readonly struct LessThanFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) < 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return TColumn.Get(row).CompareTo(TLiteral.Value) < 0;
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return false;
+            if (left is null) return true;
+            if (right is null) return false;
+            return left.CompareTo(right) < 0;
+        }
+    }
 }
 
 internal readonly struct GreaterOrEqualFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) >= 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return TColumn.Get(row).CompareTo(TLiteral.Value) >= 0;
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return true;
+            if (left is null) return false;
+            if (right is null) return true;
+            return left.CompareTo(right) >= 0;
+        }
+    }
 }
 
 internal readonly struct LessOrEqualFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) <= 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return TColumn.Get(row).CompareTo(TLiteral.Value) <= 0;
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return true;
+            if (left is null) return true;
+            if (right is null) return false;
+            return left.CompareTo(right) <= 0;
+        }
+    }
 }
 
 internal readonly struct NotEqualFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
     where TColumn : IColumn<TRow, TValue>
     where TLiteral : ILiteral<TValue>
+    where TValue : IEquatable<TValue>, IComparable<TValue>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) != 0;
+    {
+        if (typeof(TValue).IsValueType)
+        {
+            return !TColumn.Get(row).Equals(TLiteral.Value);
+        }
+        else
+        {
+            var left = TColumn.Get(row);
+            var right = TLiteral.Value;
+            if (left is null && right is null) return false;
+            if (left is null || right is null) return true;
+            return !left.Equals(right);
+        }
+    }
 }
 
 internal readonly struct AndFilter<TRow, TLeftPredicate, TRightPredicate> : IFilter<TRow>

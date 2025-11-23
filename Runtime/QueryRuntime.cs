@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace TypedSql.Runtime;
 
-internal readonly struct ValueString(string? value) : IComparable<ValueString>
+internal readonly struct ValueString(string? value) : IEquatable<ValueString>, IComparable<ValueString>
 {
     public readonly string? Value = value;
 
@@ -14,11 +14,26 @@ internal readonly struct ValueString(string? value) : IComparable<ValueString>
     public int CompareTo(ValueString other)
         => string.Compare(Value, other.Value, StringComparison.Ordinal);
 
+    public bool Equals(ValueString other)
+    {
+        return string.Equals(Value, other.Value, StringComparison.Ordinal);
+    }
+
     public override string? ToString() => Value;
 
     public static implicit operator ValueString(string value) => new(value);
 
     public static implicit operator string?(ValueString value) => value.Value;
+
+    public override bool Equals(object? obj)
+    {
+        return obj is ValueString str && Equals(str);
+    }
+
+    public override int GetHashCode()
+    {
+        return Value?.GetHashCode() ?? 0;
+    }
 }
 
 [method: MethodImpl(MethodImplOptions.AggressiveInlining)]

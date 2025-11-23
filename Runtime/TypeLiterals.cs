@@ -25,6 +25,7 @@ internal readonly struct HexE : IHex { public static int Value => 14; }
 internal readonly struct HexF : IHex { public static int Value => 15; }
 
 internal interface ILiteral<T>
+    where T : IEquatable<T>, IComparable<T>
 {
     abstract static T Value { get; }
 }

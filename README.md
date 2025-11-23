@@ -69,11 +69,11 @@ dotnet run -c Release
 ## Benchmarks
 Compare a simple TypedSql query against equivalent LINQ and handwritten loops over the same in-memory data. Filtering out rows where `City == "Seattle"` and returning the matching `Id` values, produced numbers like these:
 
-| Method   | Mean      | Error     | StdDev    | Ratio | RatioSD | Gen0   | Code Size | Allocated | Alloc Ratio |
-|--------- |----------:|----------:|----------:|------:|--------:|-------:|----------:|----------:|------------:|
-| TypedSql | 10.093 ns | 0.2519 ns | 0.3185 ns |  1.21 |    0.05 | 0.0046 |     666 B |      72 B |        1.00 |
-| Linq     | 27.449 ns | 0.5885 ns | 0.7442 ns |  3.28 |    0.12 | 0.0127 |   3,769 B |     200 B |        2.78 |
-| Foreach  |  8.364 ns | 0.2126 ns | 0.2274 ns |  1.00 |    0.04 | 0.0046 |     409 B |      72 B |        1.00 |
+| Method   | Mean      | Error     | StdDev    | Gen0   | Code Size | Allocated |
+|--------- |----------:|----------:|----------:|-------:|----------:|----------:|
+| TypedSql | 10.953 ns | 0.0250 ns | 0.0195 ns | 0.0051 |     111 B |      80 B |
+| Linq     | 27.030 ns | 0.1277 ns | 0.1067 ns | 0.0148 |   3,943 B |     232 B |
+| Foreach  |  9.429 ns | 0.0417 ns | 0.0326 ns | 0.0046 |     407 B |      72 B |
 
 TypedSql and the handwritten `foreach` loop end up with very similar throughput and allocation, while the LINQ query is noticeably slower and allocates more.
 
