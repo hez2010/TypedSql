@@ -14,6 +14,7 @@ internal readonly struct ValueString(string? value) : IEquatable<ValueString>, I
     public int CompareTo(ValueString other)
         => string.Compare(Value, other.Value, StringComparison.Ordinal);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(ValueString other)
     {
         return string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -25,11 +26,13 @@ internal readonly struct ValueString(string? value) : IEquatable<ValueString>, I
 
     public static implicit operator string?(ValueString value) => value.Value;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object? obj)
     {
         return obj is ValueString str && Equals(str);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
         return Value?.GetHashCode() ?? 0;
