@@ -160,7 +160,7 @@ internal readonly struct EqualsFilter<TRow, TColumn, TLiteral, TValue> : IFilter
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => EqualityComparer<TValue>.Default.Equals(TColumn.Get(row), TLiteral.Value);
+        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) == 0;
 }
 
 internal readonly struct GreaterThanFilter<TRow, TColumn, TLiteral, TValue> : IFilter<TRow>
@@ -205,7 +205,7 @@ internal readonly struct NotEqualFilter<TRow, TColumn, TLiteral, TValue> : IFilt
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Evaluate(in TRow row)
-        => !EqualityComparer<TValue>.Default.Equals(TColumn.Get(row), TLiteral.Value);
+        => Comparer<TValue>.Default.Compare(TColumn.Get(row), TLiteral.Value) != 0;
 }
 
 internal readonly struct AndFilter<TRow, TLeftPredicate, TRightPredicate> : IFilter<TRow>
