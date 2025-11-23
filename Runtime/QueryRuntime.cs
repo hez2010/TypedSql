@@ -24,13 +24,13 @@ internal readonly struct ValueString(string? value) : IComparable<ValueString>
 [method: MethodImpl(MethodImplOptions.AggressiveInlining)]
 internal ref struct QueryRuntime<TResult>(int expectedCount)
 {
-    private TResult[] _buffer = expectedCount > 0 ? GC.AllocateUninitializedArray<TResult>(expectedCount) : [];
+    private readonly TResult[] _buffer = expectedCount > 0 ? new TResult[expectedCount] : [];
     private int _count = 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in TResult value)
     {
-        EnsureCapacity(_count + 1);
+        // The resulted rows are never larger than the input rows, so no resizing is needed.
         Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), _count++) = value;
     }
 
@@ -41,8 +41,7 @@ internal ref struct QueryRuntime<TResult>(int expectedCount)
         {
             return;
         }
-
-        EnsureCapacity(_count + values.Length);
+        // The resulted rows are never larger than the input rows, so no resizing is needed.
         values.CopyTo(_buffer.AsSpan(_count));
         _count += values.Length;
     }
@@ -73,32 +72,6 @@ internal ref struct QueryRuntime<TResult>(int expectedCount)
     public readonly ReadOnlySpan<TResult> AsSpan()
     {
         return _buffer.AsSpan(0, _count);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void Set(int index, in TResult value)
-    {
-        Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_buffer), index) = value;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void EnsureCapacity(int needed)
-    {
-        if (_buffer is null)
-        {
-            _buffer = GC.AllocateUninitializedArray<TResult>(int.Max(4, needed));
-            return;
-        }
-
-        if (_buffer.Length >= needed)
-        {
-            return;
-        }
-
-        var newSize = int.Max(needed, int.Max(4, _buffer.Length * 2));
-        var next = GC.AllocateUninitializedArray<TResult>(newSize);
-        _buffer.CopyTo(MemoryMarshal.CreateSpan(ref MemoryMarshal.GetArrayDataReference(next), _count));
-        _buffer = next;
     }
 }
 

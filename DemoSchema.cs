@@ -125,5 +125,5 @@ public record struct Person(
     bool IsManager,
     int YearsAtCompany,
     string Country,
-    string Team,
+    string? Team,
     string Level);
