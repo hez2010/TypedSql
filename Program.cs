@@ -1,4 +1,5 @@
-﻿using TypedSql;
+﻿using System.Runtime.CompilerServices;
+using TypedSql;
 using TypedSql.Runtime;
 
 SchemaRegistry<Person>.Register(DemoSchema.People);
@@ -22,7 +23,7 @@ Console.WriteLine();
 
 QueryEngine.CompiledQuery<TSource, TResult> Compile<TSource, TResult>(string query)
 {
-	var compiledQuery = QueryEngine.Compile<TSource, TResult>(query);
+	var compiledQuery = QueryEngine.Compile<TSource, TResult>(query, supportsAot: !RuntimeFeature.IsDynamicCodeSupported);
 	Console.WriteLine($"Compiled query for `{query}`:\n{compiledQuery}");
 	return compiledQuery;
 }
@@ -67,3 +68,33 @@ foreach (var (name, city, department, team, level) in Compile<Person, (string Na
 {
 	Console.WriteLine($" -> {name} ({city}) - {department}/{team ?? "Unset"} [{level}]");
 }
+
+Console.WriteLine();
+
+// 6) Double negation of predicates
+foreach (var name in Compile<Person, string>(
+	"SELECT Name FROM $ WHERE NOT NOT country = 'US'").Execute(rows))
+{
+	Console.WriteLine($" -> {name}");
+}
+
+Console.WriteLine();
+
+// 7) De Morgan distribution over OR
+foreach (var name in Compile<Person, string>(
+	"SELECT Name FROM $ WHERE NOT (team = 'Runtime' OR team = 'ML')").Execute(rows))
+{
+	Console.WriteLine($" -> {name}");
+}
+
+Console.WriteLine();
+
+// 8) Duplicate predicates in AND/OR chains
+foreach (var person in Compile<Person, Person>(
+	"SELECT * FROM $ WHERE department = 'Engineering' AND department = 'Engineering' AND (city = 'Seattle' OR city = 'Seattle')").Execute(rows))
+{
+	Console.WriteLine($" -> {person.Name} ({person.City}) [{person.Department}]");
+}
+
+Console.WriteLine();
+Console.WriteLine("All queries executed.");

@@ -11,6 +11,8 @@ public static class QueryEngine
     {
         private readonly Func<ReadOnlySpan<TRow>, IReadOnlyList<TResult>> _entryPoint = executeMethod.CreateDelegate<Func<ReadOnlySpan<TRow>, IReadOnlyList<TResult>>>();
 
+        public Type QueryPlan => executeMethod.DeclaringType!;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IReadOnlyList<TResult> Execute(ReadOnlySpan<TRow> rows)
         {
@@ -19,14 +21,14 @@ public static class QueryEngine
 
         public override string ToString()
         {
-            return Visualize(executeMethod.DeclaringType!, friendly: true);
+            return Visualize(QueryPlan, friendly: true);
         }
     }
 
-    public static CompiledQuery<TRow, TResult> Compile<TRow, TResult>([StringSyntax("sql")] string sql)
+    public static CompiledQuery<TRow, TResult> Compile<TRow, TResult>([StringSyntax("sql")] string sql, bool supportsAot = false)
     {
         var parsed = SqlParser.Parse(sql);
-        var (pipelineType, runtimeResultType, publicResultType) = SqlCompiler.Compile<TRow>(parsed);
+        var (pipelineType, runtimeResultType, publicResultType) = SqlCompiler.Compile<TRow>(parsed, supportsAot);
         if (publicResultType != typeof(TResult))
         {
             throw new InvalidOperationException($"Query result type '{publicResultType}' does not match '{typeof(TResult)}'.");
@@ -69,7 +71,7 @@ public static class QueryEngine
         if (t.GetInterfaces().Any(i => i == typeof(ILiteral<ValueString>)))
         {
             var literalValue = (ValueString)t.GetProperty(nameof(ILiteral<>.Value))!.GetValue(null)!;
-            return literalValue.Value is null ? "null" : $"'{literalValue}'";
+            return literalValue.Value is null ? "null" : $"'{literalValue.Value.Replace("'", "''")}'";
         }
 
         var hex = t.GetGenericArguments();

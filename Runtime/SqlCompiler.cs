@@ -37,7 +37,8 @@ internal static class SqlCompiler
 
         if (query.Where is { } whereExpression)
         {
-            var predicateType = BuildPredicate<TRow>(whereExpression);
+            var simplifiedWhere = Simplify(whereExpression);
+            var predicateType = BuildPredicate<TRow>(simplifiedWhere);
             pipeline = typeof(Where<,,,,>).MakeGenericType(rowType, predicateType, pipeline, runtimeResultType, rowType);
         }
 
@@ -140,7 +141,7 @@ internal static class SqlCompiler
 
         projectionArgs[8] = rest.ProjectionType;
         projectionArgs[16] = rest.RuntimeType;
-        var projectionType =  typeof(ValueTupleProjection<,,,,,,,,,,,,,,,,>).MakeGenericType(projectionArgs);
+        var projectionType = typeof(ValueTupleProjection<,,,,,,,,,,,,,,,,>).MakeGenericType(projectionArgs);
 
         var runtimeTupleType = typeof(ValueTuple<,,,,,,,>).MakeGenericType(
             headRuntimeValues[0],
@@ -214,6 +215,82 @@ internal static class SqlCompiler
                 typeof(TRow),
                 BuildPredicate<TRow>(notExpression.Expression)),
             _ => throw new InvalidOperationException($"Unsupported WHERE expression '{expression}'."),
+        };
+    }
+
+    private static WhereExpression Simplify(WhereExpression expression)
+    {
+        return expression switch
+        {
+            AndExpression andExpression => SimplifyAndExpression(andExpression),
+            OrExpression orExpression => SimplifyOrExpression(orExpression),
+            NotExpression notExpression => SimplifyNotExpression(notExpression),
+            _ => expression,
+        };
+    }
+
+    private static WhereExpression SimplifyAndExpression(AndExpression expression)
+    {
+        var left = Simplify(expression.Left);
+        var right = Simplify(expression.Right);
+
+        if (left == right)
+        {
+            return left;
+        }
+
+        if (left == expression.Left && right == expression.Right)
+        {
+            return expression;
+        }
+
+        return new AndExpression(left, right);
+    }
+
+    private static WhereExpression SimplifyOrExpression(OrExpression expression)
+    {
+        var left = Simplify(expression.Left);
+        var right = Simplify(expression.Right);
+
+        if (left == right)
+        {
+            return left;
+        }
+
+        if (left == expression.Left && right == expression.Right)
+        {
+            return expression;
+        }
+
+        return new OrExpression(left, right);
+    }
+
+    private static WhereExpression SimplifyNotExpression(NotExpression expression)
+    {
+        var inner = Simplify(expression.Expression);
+
+        return inner switch
+        {
+            ComparisonExpression comparison => comparison with { Operator = Negate(comparison.Operator) },
+            NotExpression nested => Simplify(nested.Expression),
+            AndExpression andExpression => Simplify(new OrExpression(new NotExpression(andExpression.Left), new NotExpression(andExpression.Right))),
+            OrExpression orExpression => Simplify(new AndExpression(new NotExpression(orExpression.Left), new NotExpression(orExpression.Right))),
+            _ when inner == expression.Expression => expression,
+            _ => new NotExpression(inner),
+        };
+    }
+
+    private static ComparisonOperator Negate(ComparisonOperator op)
+    {
+        return op switch
+        {
+            ComparisonOperator.Equals => ComparisonOperator.NotEqual,
+            ComparisonOperator.NotEqual => ComparisonOperator.Equals,
+            ComparisonOperator.GreaterThan => ComparisonOperator.LessOrEqual,
+            ComparisonOperator.LessThan => ComparisonOperator.GreaterOrEqual,
+            ComparisonOperator.GreaterOrEqual => ComparisonOperator.LessThan,
+            ComparisonOperator.LessOrEqual => ComparisonOperator.GreaterThan,
+            _ => throw new InvalidOperationException($"Unsupported comparison operator '{op}'."),
         };
     }
 

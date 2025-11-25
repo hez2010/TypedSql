@@ -33,17 +33,63 @@ internal readonly record struct LiteralValue(LiteralKind Kind, int IntValue, str
     public static LiteralValue FromFloat(float value) => new(LiteralKind.Float, 0, null, value, false);
 
     public static LiteralValue FromBool(bool value) => new(LiteralKind.Boolean, 0, null, 0f, value);
+
+    public override string? ToString()
+    {
+        return Kind switch
+        {
+            LiteralKind.Integer => IntValue.ToString(CultureInfo.InvariantCulture),
+            LiteralKind.String => StringValue is null ? "null" : $"'{StringValue.Replace("'", "\\'")}'",
+            LiteralKind.Float => FloatValue.ToString(CultureInfo.InvariantCulture),
+            LiteralKind.Boolean => BoolValue ? "True" : "False",
+            _ => throw new InvalidOperationException("Unknown literal kind.")
+        };
+    }
 }
 
 internal abstract record WhereExpression;
 
-internal sealed record ComparisonExpression(string ColumnIdentifier, ComparisonOperator Operator, LiteralValue Literal) : WhereExpression;
+internal sealed record ComparisonExpression(string ColumnIdentifier, ComparisonOperator Operator, LiteralValue Literal) : WhereExpression
+{
+    public override string ToString()
+    {
+        var opString = Operator switch
+        {
+            ComparisonOperator.Equals => "=",
+            ComparisonOperator.GreaterThan => ">",
+            ComparisonOperator.LessThan => "<",
+            ComparisonOperator.GreaterOrEqual => ">=",
+            ComparisonOperator.LessOrEqual => "<=",
+            ComparisonOperator.NotEqual => "!=",
+            _ => throw new InvalidOperationException("Unknown comparison operator.")
+        };
+        return $"{ColumnIdentifier} {opString} {Literal}";
+    }
+}
 
-internal sealed record AndExpression(WhereExpression Left, WhereExpression Right) : WhereExpression;
+internal sealed record AndExpression(WhereExpression Left, WhereExpression Right) : WhereExpression
+{
+    public override string ToString()
+    {
+        return $"({Left}) && ({Right})";
+    }
+}
 
-internal sealed record OrExpression(WhereExpression Left, WhereExpression Right) : WhereExpression;
+internal sealed record OrExpression(WhereExpression Left, WhereExpression Right) : WhereExpression
+{
+    public override string ToString()
+    {
+        return $"({Left}) || ({Right})";
+    }
+}
 
-internal sealed record NotExpression(WhereExpression Expression) : WhereExpression;
+internal sealed record NotExpression(WhereExpression Expression) : WhereExpression
+{
+    public override string ToString()
+    {
+        return $"!({Expression})";
+    }
+}
 
 internal sealed record ParsedQuery(SelectionClause Selection, WhereExpression? Where);
 
